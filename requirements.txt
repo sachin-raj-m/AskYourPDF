@@ -1,0 +1,8 @@
+flask
+gradio
+langchain
+langchain_community
+langchain_huggingface
+chromadb
+huggingface_hub
+flask_cors
