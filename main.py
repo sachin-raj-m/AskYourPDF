@@ -157,7 +157,7 @@ def answer_query(message, chat_history):
 
 # Build Gradio interface
 with gr.Blocks() as demo:
-    gr.HTML("<h1 align='center'>AskYourPDF</h1>")
+    gr.HTML("<h1 align='center'>AskYourPDF 📄🤖</h1>")
 
     with gr.Row():
         upload_files = gr.File(label='Upload a PDF', file_types=['.pdf'], file_count='single')
