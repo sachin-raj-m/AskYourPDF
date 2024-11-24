@@ -80,4 +80,4 @@ We value your feedback! If you encounter issues or have suggestions to improve t
 Thank you for helping us make this project even better!
 
 ## License
-This project is open-source and available under the [MIT License](license).
+This project is open-source and available under the [MIT License](LICENSE).
