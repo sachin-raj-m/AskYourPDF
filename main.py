@@ -6,7 +6,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_groq import ChatGroq
 from langchain.prompts.chat import ChatPromptTemplate, HumanMessagePromptTemplate
-import faiss 
+import faiss
 import numpy as np
 
 dotenv.load_dotenv()
@@ -46,6 +46,8 @@ predefined_responses = {
 }
 
 # Function to load and add documents to FAISS
+
+
 def add_docs(path):
     global docs
     print("Loading documents from:", path)
@@ -62,14 +64,17 @@ def add_docs(path):
         print(f"Loaded {len(docs)} document chunks.")
 
         # Embed the documents using the embedding function
-        doc_texts = [doc.page_content for doc in docs]  # Extract text from docs
-        embeddings = embedding_function.embed_documents(doc_texts)  # Get embeddings for all documents
+        # Extract text from docs
+        doc_texts = [doc.page_content for doc in docs]
+        embeddings = embedding_function.embed_documents(
+            doc_texts)  # Get embeddings for all documents
 
         # Convert embeddings to numpy array for FAISS indexing
         faiss_vectors = np.array(embeddings, dtype='float32')
 
         # Initialize FAISS index and add vectors
-        index = faiss.IndexFlatL2(faiss_vectors.shape[1])  # Using L2 distance for similarity search
+        # Using L2 distance for similarity search
+        index = faiss.IndexFlatL2(faiss_vectors.shape[1])
         index.add(faiss_vectors)  # Add the vectors to the index
 
         os.makedirs("output", exist_ok=True)
@@ -80,6 +85,8 @@ def add_docs(path):
         print("Error in add_docs:", e)
 
 # Function to answer a query based on stored documents
+
+
 def answer_query(message, chat_history):
     global docs
     print("Received query:", message)
@@ -110,7 +117,8 @@ def answer_query(message, chat_history):
         index = faiss.read_index(index_path)
 
         # Embed the query using the embedding function
-        query_vector = embedding_function.embed_query(message)  # Get the embedding for the query
+        query_vector = embedding_function.embed_query(
+            message)  # Get the embedding for the query
         query_vector = np.array([query_vector], dtype='float32')
 
         # Search for the nearest vectors (using the query vector)
@@ -123,7 +131,7 @@ def answer_query(message, chat_history):
         # Define the prompt template
         template = """
         You are a knowledgeable assistant. Use the context provided to answer the question in detail and with clarity. 
-        Structure your response into clear paragraphs and provide additional insights if they are relevant, but do not use information outside the context.
+        Structure your response into clear paragraphs and provide additional insights if they are relevant, but do not use any information or knowledge outside the context.
         If the given context does not have the information, respond: 'I don't know the answer to this question.'
         Context: ```{context}```
         ----------------------------
@@ -160,7 +168,8 @@ with gr.Blocks() as demo:
     gr.HTML("<h1 align='center'>AskYourPDF 📄🤖</h1>")
 
     with gr.Row():
-        upload_files = gr.File(label='Upload a PDF', file_types=['.pdf'], file_count='single')
+        upload_files = gr.File(label='Upload a PDF', file_types=[
+                               '.pdf'], file_count='single')
 
     chatbot = gr.Chatbot(type="messages")
     msg = gr.Textbox(label="Enter your question here")
