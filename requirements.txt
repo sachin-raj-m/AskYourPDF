@@ -1,8 +1,9 @@
-flask
 gradio
+python-dotenv
+langchain-community
 langchain
-langchain_community
-langchain_huggingface
-chromadb
-huggingface_hub
-flask_cors
+langchain-google-genai
+langchain-groq
+faiss-cpu
+numpy
+pypdf

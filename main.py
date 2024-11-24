@@ -3,30 +3,27 @@ import os
 import dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_groq import ChatGroq
-from langchain_community.vectorstores import Chroma
-from langchain_chroma import Chroma
-
-from langchain.retrievers.document_compressors import LLMChainExtractor
-from langchain.retrievers.multi_query import MultiQueryRetriever
-from langchain.retrievers import ContextualCompressionRetriever
 from langchain.prompts.chat import ChatPromptTemplate, HumanMessagePromptTemplate
-
+import faiss 
+import numpy as np
 
 dotenv.load_dotenv()
 groq_api_key = os.getenv("GROQ_API_KEY")
+
+# Global variable to store documents
+docs = []
 
 # Initializing the language model
 llm = ChatGroq(groq_api_key=groq_api_key, model_name="Llama3-8b-8192")
 print("Groq model initialized.")
 
-# Initialize HuggingFace embeddings
-print("Initializing HuggingFace Embeddings...")
-embedding_function = HuggingFaceEmbeddings(
-    model_name="BAAI/bge-large-en-v1.5",
-    model_kwargs={'device': 'cpu'},
-    encode_kwargs={"normalize_embeddings": True}
+# Initialize Google Embeddings
+print("Initializing GoogleGenAI Embeddings...")
+embedding_function = GoogleGenerativeAIEmbeddings(
+    model="models/embedding-001",  # Replace with the appropriate model name if needed
+    api_key=os.getenv("GOOGLE_API_KEY")
 )
 print("Embeddings initialized.")
 
@@ -39,7 +36,7 @@ predefined_responses = {
     "thanks": "You're welcome! Have a great day!",
     "bye": "Goodbye! Take care.",
     "who made you": "I was created by Sachin Raj M. He made this in one day and shipped it for greater good.",
-    "who created you": "Sachin Raj M is my creator. He built this system for a better, more efficient way to navigate through PDF documents.",
+    "who created you": "Sachin is my creator. He built this system for a better, more efficient way to navigate through PDF documents.",
     "creator of pdfchatbot": "Sachin Raj M. He crafted this chatbot in one day to help users quickly find answers in PDFs.",
     "when was you created": "I was created on 17 November 2024.",
     "why was you created": (
@@ -48,10 +45,9 @@ predefined_responses = {
     )
 }
 
-# Function to load and add documents
-
-
+# Function to load and add documents to FAISS
 def add_docs(path):
+    global docs  # Use the global docs variable to store documents
     print("Loading documents from:", path)
     try:
         loader = PyPDFLoader(file_path=path)
@@ -65,27 +61,30 @@ def add_docs(path):
         )
         print(f"Loaded {len(docs)} document chunks.")
 
-        # Ensure persistence directory exists
-        persist_dir = "output/general_knowledge"
-        os.makedirs(persist_dir, exist_ok=True)
+        # Embed the documents using the embedding function
+        doc_texts = [doc.page_content for doc in docs]  # Extract text from docs
+        embeddings = embedding_function.embed_documents(doc_texts)  # Get embeddings for all documents
 
-        # Initialize Chroma database and add documents
-        model_vectorstore = Chroma
-        db = model_vectorstore.from_documents(
-            documents=docs,
-            embedding=embedding_function,
-            persist_directory=persist_dir
-        )
-        print("Documents added to vector store.")
-        return db
+        # Convert embeddings to numpy array for FAISS indexing
+        faiss_vectors = np.array(embeddings, dtype='float32')
+
+        # Initialize FAISS index and add vectors
+        index = faiss.IndexFlatL2(faiss_vectors.shape[1])  # Using L2 distance for similarity search
+        index.add(faiss_vectors)  # Add the vectors to the index
+
+        # Ensure the output directory exists
+        os.makedirs("output", exist_ok=True)
+
+        # Save the FAISS index to disk
+        faiss.write_index(index, "output/faiss_index.index")
+
+        print("Documents added to FAISS vector store.")
     except Exception as e:
         print("Error in add_docs:", e)
-        return None
 
 # Function to answer a query based on stored documents
-
-
 def answer_query(message, chat_history):
+    global docs  # Use the global docs variable
     print("Received query:", message)
 
     # Check for predefined responses
@@ -105,26 +104,24 @@ def answer_query(message, chat_history):
 
     # If not a predefined response, proceed with RAG pipeline
     try:
-        # Initialize compressor and retrievers
-        base_compressor = LLMChainExtractor.from_llm(llm)
-        db = Chroma(
-            persist_directory="output/general_knowledge",
-            embedding_function=embedding_function
-        )
-        base_retriever = db.as_retriever()
-        mq_retriever = MultiQueryRetriever.from_llm(
-            retriever=base_retriever, llm=llm)
-        compression_retriever = ContextualCompressionRetriever(
-            base_compressor=base_compressor,
-            base_retriever=mq_retriever
-        )
+        # Load FAISS index from disk
+        index_path = "output/faiss_index.index"
+        if not os.path.exists(index_path):
+            print("FAISS index file not found. Please upload documents first.")
+            return "No index found. Please upload a PDF document first.", chat_history
 
-        # Retrieve relevant documents
-        matched_docs = compression_retriever.invoke(input=message)
-        print(f"Found {len(matched_docs)} relevant documents.")
+        index = faiss.read_index(index_path)
 
-        # Concatenate document content
-        context = "\n\n".join([doc.page_content for doc in matched_docs])
+        # Embed the query using the embedding function
+        query_vector = embedding_function.embed_query(message)  # Get the embedding for the query
+        query_vector = np.array([query_vector], dtype='float32')
+
+        # Search for the nearest vectors (using the query vector)
+        D, I = index.search(query_vector, k=5)  # Get top 5 similar documents
+        print(f"Found {len(I)} similar documents.")
+
+        # Retrieve the documents (in practice, you'd map indices back to documents)
+        context = "\n\n".join([docs[i].page_content for i in I[0]])
 
         # Define the prompt template
         template = """
@@ -164,11 +161,10 @@ def answer_query(message, chat_history):
 
 # Build Gradio interface
 with gr.Blocks() as demo:
-    gr.HTML("<h1 align='center'>RapiDoc</h1>")
+    gr.HTML("<h1 align='center'>AskYourPDF</h1>")
 
     with gr.Row():
-        upload_files = gr.File(label='Upload a PDF', file_types=[
-                               '.pdf'], file_count='single')
+        upload_files = gr.File(label='Upload a PDF', file_types=['.pdf'], file_count='single')
 
     chatbot = gr.Chatbot(type="messages")
     msg = gr.Textbox(label="Enter your question here")
