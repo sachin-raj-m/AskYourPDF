@@ -75,7 +75,7 @@ We welcome contributions from the open-source community! If you’d like to cont
 - Create a New Branch: Make your changes or improvements in a separate branch.
 - Submit a Pull Request: Once your changes are ready, submit a pull request to merge them into the main project.
 ### Feedback:
-We value your feedback! If you encounter issues or have suggestions to improve the app, feel free to open an issue or reach out via [Discussions](discussions).
+We value your feedback! If you encounter issues or have suggestions to improve the app, feel free to open an issue or reach out via [discussions](https://github.com/sachin-raj-m/AskYourPDF/discussions).
 
 Thank you for helping us make this project even better!
 
