@@ -37,8 +37,8 @@ predefined_responses = {
     "bye": "Goodbye! Take care.",
     "who made you": "I was created by Sachin Raj M. He made this in one day and shipped it for greater good.",
     "who created you": "Sachin is my creator. He built this system for a better, more efficient way to navigate through PDF documents.",
-    "creator of pdfchatbot": "Sachin Raj M. He crafted this chatbot in one day to help users quickly find answers in PDFs.",
-    "when was you created": "I was created on 17 November 2024.",
+    "creator of pdfchatbot": "Sachin Raj M. He built this chatbot in one day to help users quickly find answers in PDFs.",
+    "when was you created": "I was initially launched on 17 November 2024 and made available to the public. My last update is on 24 November 2024.",
     "why was you created": (
         "I was created to address the problem of endless scrolling through PDF pages. "
         "Many people struggled to find information quickly, so this app was designed to make searching within PDFs fast and efficient."
@@ -47,7 +47,7 @@ predefined_responses = {
 
 # Function to load and add documents to FAISS
 def add_docs(path):
-    global docs  # Use the global docs variable to store documents
+    global docs
     print("Loading documents from:", path)
     try:
         loader = PyPDFLoader(file_path=path)
@@ -72,10 +72,7 @@ def add_docs(path):
         index = faiss.IndexFlatL2(faiss_vectors.shape[1])  # Using L2 distance for similarity search
         index.add(faiss_vectors)  # Add the vectors to the index
 
-        # Ensure the output directory exists
         os.makedirs("output", exist_ok=True)
-
-        # Save the FAISS index to disk
         faiss.write_index(index, "output/faiss_index.index")
 
         print("Documents added to FAISS vector store.")
@@ -84,7 +81,7 @@ def add_docs(path):
 
 # Function to answer a query based on stored documents
 def answer_query(message, chat_history):
-    global docs  # Use the global docs variable
+    global docs
     print("Received query:", message)
 
     # Check for predefined responses
@@ -140,7 +137,6 @@ def answer_query(message, chat_history):
         chat_prompt = ChatPromptTemplate.from_messages([human_message_prompt])
         prompt = chat_prompt.format_prompt(query=message, context=context)
 
-        # Get response from the language model
         response = llm.invoke(input=prompt.to_messages())
 
         # Ensure the response is in the correct format
@@ -171,7 +167,6 @@ with gr.Blocks() as demo:
     upload_files.upload(add_docs, upload_files)
     msg.submit(answer_query, [msg, chatbot], [msg, chatbot])
 
-# Start the app
 print("Launching Gradio app...")
 demo.launch()
 print("App is running...")
